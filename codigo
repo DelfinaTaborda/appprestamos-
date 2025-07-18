@@ -1,0 +1,2880 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import type { Socio } from "@/lib/types"
+import { obtenerResumenMensual, formatearMoneda, formatearPorcentaje } from "@/lib/utils-app"
+import { MobileNavigation } from "@/components/mobile-navigation"
+import { MobileHeader } from "@/components/mobile-header"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { BarChart3, TrendingUp, Users, DollarSign, PieChart, Activity } from "lucide-react"
+
+export default function ReportesPage() {
+  const [socios, setSocios] = useState<Socio[]>([])
+
+  useEffect(() => {
+    const sociosGuardados = localStorage.getItem("socios")
+    if (sociosGuardados) {
+      setSocios(JSON.parse(sociosGuardados))
+    }
+  }, [])
+
+  const resumen = obtenerResumenMensual(socios)
+  const sociosActivos = socios.filter((s) => s.estado === "activo")
+  const sociosPasivos = socios.filter((s) => s.estado === "pasivo")
+
+  // Estadísticas por tipo de préstamo
+  const estadisticasPorTipo = Object.entries(resumen.comisionesPorTipo)
+    .map(([tipo, data]) => ({
+      tipo,
+      cantidad: data.cantidad,
+      total: data.total,
+      porcentaje: resumen.totalGeneral > 0 ? (data.total / resumen.totalGeneral) * 100 : 0,
+    }))
+    .sort((a, b) => b.total - a.total)
+
+  return (
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <MobileHeader title="Reportes" />
+
+      <main className="px-4 py-6 space-y-6">
+        {/* Métricas principales */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="shadow-pink border-pink">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Total Socios</CardTitle>
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-gradient-pink">{resumen.totalSocios}</div>
+              <p className="text-xs text-muted-foreground">
+                {resumen.sociosActivos} activos, {sociosPasivos.length} pasivos
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-pink border-pink">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Comisiones</CardTitle>
+                <DollarSign className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-gradient-pink">{formatearMoneda(resumen.totalGeneral)}</div>
+              <p className="text-xs text-muted-foreground">Solo activos</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-pink border-pink">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Nuevos</CardTitle>
+                <TrendingUp className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-gradient-pink">{resumen.sociosNuevos}</div>
+              <p className="text-xs text-muted-foreground">Este mes</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-pink border-pink">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Promedio</CardTitle>
+                <BarChart3 className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-gradient-pink">
+                {formatearMoneda(resumen.sociosActivos > 0 ? resumen.totalGeneral / resumen.sociosActivos : 0)}
+              </div>
+              <p className="text-xs text-muted-foreground">Por socio</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Distribución por tipo de préstamo */}
+        <Card className="shadow-pink border-pink">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <PieChart className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Por Tipo de Préstamo</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {estadisticasPorTipo.length > 0 ? (
+              estadisticasPorTipo.map((stat) => (
+                <div key={stat.tipo} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{stat.tipo}</p>
+                      <p className="text-xs text-muted-foreground">{stat.cantidad} socios</p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="font-medium text-sm">{formatearMoneda(stat.total)}</p>
+                      <p className="text-xs text-muted-foreground">{stat.porcentaje.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                  <Progress value={stat.porcentaje} className="h-2" />
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground text-sm">No hay datos para mostrar</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Estado de socios */}
+        <Card className="shadow-pink border-pink">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Estado de Socios</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full bg-primary"></div>
+                  <span className="text-sm font-medium">Activos</span>
+                </div>
+                <span className="font-medium text-sm">{sociosActivos.length}</span>
+              </div>
+              <Progress
+                value={resumen.totalSocios > 0 ? (sociosActivos.length / resumen.totalSocios) * 100 : 0}
+                className="h-2"
+              />
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full bg-primary/70"></div>
+                  <span className="text-sm font-medium">Pasivos</span>
+                </div>
+                <span className="font-medium text-sm">{sociosPasivos.length}</span>
+              </div>
+              <Progress
+                value={resumen.totalSocios > 0 ? (sociosPasivos.length / resumen.totalSocios) * 100 : 0}
+                className="h-2"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Resumen financiero detallado */}
+        <Card className="shadow-pink border-pink">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Resumen Financiero</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
+                <span className="text-sm font-medium">Total en Créditos</span>
+                <span className="font-bold text-primary">
+                  {formatearMoneda(sociosActivos.reduce((sum, s) => sum + s.monto_credito, 0))}
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                <span className="text-sm font-medium">Total en Comisiones</span>
+                <span className="font-bold text-green-600">{formatearMoneda(resumen.totalGeneral)}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                <span className="text-sm font-medium">Porcentaje Promedio</span>
+                <span className="font-bold text-blue-600">
+                  {sociosActivos.length > 0
+                    ? formatearPorcentaje(
+                        sociosActivos.reduce((sum, s) => sum + (s.porcentaje_comision || 0), 0) / sociosActivos.length,
+                      )
+                    : "0%"}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Estadísticas adicionales */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="shadow-pink border-pink">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Mayor Comisión</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {sociosActivos.length > 0 ? (
+                <>
+                  <div className="text-lg font-bold text-green-600">
+                    {formatearMoneda(
+                      Math.max(...sociosActivos.map((s) => s.monto_credito * (s.porcentaje_comision || 0))),
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Individual</p>
+                </>
+              ) : (
+                <div className="text-lg font-bold text-muted-foreground">$0</div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-pink border-pink">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Mayor Crédito</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {sociosActivos.length > 0 ? (
+                <>
+                  <div className="text-lg font-bold text-primary">
+                    {formatearMoneda(Math.max(...sociosActivos.map((s) => s.monto_credito)))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Individual</p>
+                </>
+              ) : (
+                <div className="text-lg font-bold text-muted-foreground">$0</div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Top 3 socios por comisión */}
+        {sociosActivos.length > 0 && (
+          <Card className="shadow-pink border-pink">
+            <CardHeader>
+              <CardTitle className="text-lg">Top Socios por Comisión</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {sociosActivos
+                .sort((a, b) => {
+                  const comisionA = a.monto_credito * (a.porcentaje_comision || 0)
+                  const comisionB = b.monto_credito * (b.porcentaje_comision || 0)
+                  return comisionB - comisionA
+                })
+                .slice(0, 3)
+                .map((socio, index) => {
+                  const comision = socio.monto_credito * (socio.porcentaje_comision || 0)
+                  return (
+                    <div key={socio.id} className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                            index === 0 ? "bg-yellow-500" : index === 1 ? "bg-gray-400" : "bg-orange-500"
+                          }`}
+                        >
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm truncate">{socio.nombre}</p>
+                          <p className="text-xs text-muted-foreground">{socio.tipo_prestamo}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-sm text-green-600">{formatearMoneda(comision)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatearPorcentaje(socio.porcentaje_comision || 0)}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+            </CardContent>
+          </Card>
+        )}
+      </main>
+
+      <MobileNavigation />
+    </div>
+  )
+}
+"use client"
+
+import type React from "react"
+
+import { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
+import type { Socio } from "@/lib/types"
+import { COMISIONES_POR_TIPO, TIPOS_PRESTAMO } from "@/lib/data"
+import { Navigation } from "@/components/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ArrowLeft, Save, Trash2 } from "lucide-react"
+import Link from "next/link"
+
+export default function EditarSocioPage() {
+  const params = useParams()
+  const router = useRouter()
+  const [socio, setSocio] = useState<Socio | null>(null)
+  const [formData, setFormData] = useState({
+    nombre: "",
+    dni: "",
+    telefono: "",
+    direccion: "",
+    estado: "activo" as "activo" | "pasivo",
+    tipo_prestamo: "" as keyof typeof COMISIONES_POR_TIPO,
+    monto_credito: "",
+    fecha_otorgamiento: "",
+    porcentaje_comision: "",
+    observaciones: "",
+  })
+
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const sociosGuardados = localStorage.getItem("socios")
+    if (sociosGuardados) {
+      const socios = JSON.parse(sociosGuardados)
+      const socioEncontrado = socios.find((s: Socio) => s.id === params.id)
+      if (socioEncontrado) {
+        setSocio(socioEncontrado)
+        setFormData({
+          nombre: socioEncontrado.nombre,
+          dni: socioEncontrado.dni,
+          telefono: socioEncontrado.telefono,
+          direccion: socioEncontrado.direccion,
+          estado: socioEncontrado.estado,
+          tipo_prestamo: socioEncontrado.tipo_prestamo,
+          monto_credito: socioEncontrado.monto_credito.toString(),
+          fecha_otorgamiento: socioEncontrado.fecha_otorgamiento,
+          porcentaje_comision: socioEncontrado.porcentaje_comision
+            ? (socioEncontrado.porcentaje_comision * 100).toString()
+            : "",
+          observaciones: socioEncontrado.observaciones || "",
+        })
+      }
+    }
+  }, [params.id])
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }))
+    }
+
+    // Auto-completar porcentaje de comisión cuando se selecciona tipo de préstamo
+    if (field === "tipo_prestamo" && value) {
+      const porcentajeDefecto = COMISIONES_POR_TIPO[value as keyof typeof COMISIONES_POR_TIPO]?.porcentaje_por_defecto
+      if (porcentajeDefecto) {
+        setFormData((prev) => ({
+          ...prev,
+          [field]: value,
+          porcentaje_comision: (porcentajeDefecto * 100).toString(),
+        }))
+      }
+    }
+
+    // Validar DNI en tiempo real
+    if (field === "dni" && value) {
+      const dniLimpio = value.replace(/\D/g, "").slice(0, 8)
+      setFormData((prev) => ({ ...prev, [field]: dniLimpio }))
+      return
+    }
+
+    // Validar teléfono en tiempo real
+    if (field === "telefono" && value) {
+      const telefonoLimpio = value.replace(/[^\d\-+$$$$\s]/g, "")
+      setFormData((prev) => ({ ...prev, [field]: telefonoLimpio }))
+      return
+    }
+  }
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    if (!formData.nombre.trim()) newErrors.nombre = "El nombre es requerido"
+    if (!formData.dni.trim()) newErrors.dni = "El DNI es requerido"
+    if (!formData.telefono.trim()) newErrors.telefono = "El teléfono es requerido"
+    if (!formData.direccion.trim()) newErrors.direccion = "La dirección es requerida"
+    if (!formData.tipo_prestamo) newErrors.tipo_prestamo = "El tipo de préstamo es requerido"
+    if (!formData.monto_credito || Number.parseFloat(formData.monto_credito) <= 0) {
+      newErrors.monto_credito = "El monto de crédito debe ser mayor a 0"
+    }
+    if (!formData.fecha_otorgamiento) newErrors.fecha_otorgamiento = "La fecha de otorgamiento es requerida"
+
+    // Validar DNI único (excluyendo el socio actual)
+    const sociosExistentes = JSON.parse(localStorage.getItem("socios") || "[]")
+    const dniExiste = sociosExistentes.some((s: Socio) => s.dni === formData.dni.trim() && s.id !== params.id)
+    if (dniExiste) newErrors.dni = "Ya existe otro socio con este DNI"
+
+    // Validar formato de DNI
+    if (formData.dni.trim().length < 7 || formData.dni.trim().length > 8) {
+      newErrors.dni = "El DNI debe tener entre 7 y 8 dígitos"
+    }
+
+    // Validar porcentaje
+    if (
+      formData.porcentaje_comision &&
+      (Number.parseFloat(formData.porcentaje_comision) <= 0 || Number.parseFloat(formData.porcentaje_comision) > 100)
+    ) {
+      newErrors.porcentaje_comision = "El porcentaje debe estar entre 0.1% y 100%"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!validateForm() || !socio) return
+
+    const socioActualizado: Socio = {
+      ...socio,
+      nombre: formData.nombre.trim(),
+      dni: formData.dni.trim(),
+      telefono: formData.telefono.trim(),
+      direccion: formData.direccion.trim(),
+      estado: formData.estado,
+      tipo_prestamo: formData.tipo_prestamo,
+      monto_credito: Number.parseFloat(formData.monto_credito),
+      fecha_otorgamiento: formData.fecha_otorgamiento,
+      porcentaje_comision: formData.porcentaje_comision
+        ? Number.parseFloat(formData.porcentaje_comision) / 100
+        : undefined,
+      observaciones: formData.observaciones.trim() || undefined,
+    }
+
+    // Actualizar en localStorage
+    const sociosExistentes = JSON.parse(localStorage.getItem("socios") || "[]")
+    const sociosActualizados = sociosExistentes.map((s: Socio) => (s.id === socio.id ? socioActualizado : s))
+    localStorage.setItem("socios", JSON.stringify(sociosActualizados))
+
+    router.push(`/socios/${socio.id}`)
+  }
+
+  const handleDelete = () => {
+    if (!socio) return
+
+    const confirmar = window.confirm(
+      `¿Estás seguro de que quieres eliminar al socio ${socio.nombre}? Esta acción no se puede deshacer.`,
+    )
+
+    if (confirmar) {
+      const sociosExistentes = JSON.parse(localStorage.getItem("socios") || "[]")
+      const sociosActualizados = sociosExistentes.filter((s: Socio) => s.id !== socio.id)
+      localStorage.setItem("socios", JSON.stringify(sociosActualizados))
+
+      // También eliminar tareas asociadas
+      const tareasExistentes = JSON.parse(localStorage.getItem("tareas") || "[]")
+      const tareasActualizadas = tareasExistentes.filter((t: any) => t.socio_id !== socio.id)
+      localStorage.setItem("tareas", JSON.stringify(tareasActualizadas))
+
+      router.push("/socios")
+    }
+  }
+
+  const porcentajesDisponibles = formData.tipo_prestamo
+    ? COMISIONES_POR_TIPO[formData.tipo_prestamo]?.porcentajes_posibles || []
+    : []
+
+  if (!socio) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/socios">
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Volver
+                  </Link>
+                </Button>
+                <h1 className="text-2xl font-bold">Socio no encontrado</h1>
+              </div>
+              <Navigation />
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-8">
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <p className="text-muted-foreground">El socio solicitado no existe</p>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={`/socios/${socio.id}`}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Volver
+                </Link>
+              </Button>
+              <h1 className="text-2xl font-bold">Editar Socio</h1>
+            </div>
+            <Navigation />
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8">
+        <Card className="max-w-2xl mx-auto shadow-pink border-pink">
+          <CardHeader>
+            <CardTitle>Editar Información del Socio</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Información personal */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nombre">Nombre *</Label>
+                  <Input
+                    id="nombre"
+                    value={formData.nombre}
+                    onChange={(e) => handleInputChange("nombre", e.target.value)}
+                    className={errors.nombre ? "border-red-500" : ""}
+                  />
+                  {errors.nombre && <p className="text-sm text-red-500">{errors.nombre}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="dni">DNI *</Label>
+                  <Input
+                    id="dni"
+                    value={formData.dni}
+                    onChange={(e) => handleInputChange("dni", e.target.value)}
+                    className={errors.dni ? "border-red-500" : ""}
+                    placeholder="12345678"
+                    maxLength={8}
+                  />
+                  {errors.dni && <p className="text-sm text-red-500">{errors.dni}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="telefono">Teléfono *</Label>
+                  <Input
+                    id="telefono"
+                    value={formData.telefono}
+                    onChange={(e) => handleInputChange("telefono", e.target.value)}
+                    className={errors.telefono ? "border-red-500" : ""}
+                    placeholder="11-1234-5678"
+                  />
+                  {errors.telefono && <p className="text-sm text-red-500">{errors.telefono}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="estado">Estado *</Label>
+                  <Select value={formData.estado} onValueChange={(value) => handleInputChange("estado", value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="activo">Activo</SelectItem>
+                      <SelectItem value="pasivo">Pasivo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="direccion">Dirección *</Label>
+                <Input
+                  id="direccion"
+                  value={formData.direccion}
+                  onChange={(e) => handleInputChange("direccion", e.target.value)}
+                  className={errors.direccion ? "border-red-500" : ""}
+                />
+                {errors.direccion && <p className="text-sm text-red-500">{errors.direccion}</p>}
+              </div>
+
+              {/* Información del préstamo */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="tipo_prestamo">Tipo de Préstamo *</Label>
+                  <Select
+                    value={formData.tipo_prestamo}
+                    onValueChange={(value) => handleInputChange("tipo_prestamo", value)}
+                  >
+                    <SelectTrigger className={errors.tipo_prestamo ? "border-red-500" : ""}>
+                      <SelectValue placeholder="Seleccionar tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIPOS_PRESTAMO.map((tipo) => (
+                        <SelectItem key={tipo} value={tipo}>
+                          {tipo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.tipo_prestamo && <p className="text-sm text-red-500">{errors.tipo_prestamo}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="monto_credito">Monto de Crédito *</Label>
+                  <Input
+                    id="monto_credito"
+                    type="number"
+                    step="0.01"
+                    value={formData.monto_credito}
+                    onChange={(e) => handleInputChange("monto_credito", e.target.value)}
+                    className={errors.monto_credito ? "border-red-500" : ""}
+                  />
+                  {errors.monto_credito && <p className="text-sm text-red-500">{errors.monto_credito}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fecha_otorgamiento">Fecha de Otorgamiento *</Label>
+                  <Input
+                    id="fecha_otorgamiento"
+                    type="date"
+                    value={formData.fecha_otorgamiento}
+                    onChange={(e) => handleInputChange("fecha_otorgamiento", e.target.value)}
+                    className={errors.fecha_otorgamiento ? "border-red-500" : ""}
+                  />
+                  {errors.fecha_otorgamiento && <p className="text-sm text-red-500">{errors.fecha_otorgamiento}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="porcentaje_comision">Porcentaje de Comisión (%)</Label>
+                  <div className="relative">
+                    <Input
+                      id="porcentaje_comision"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      value={formData.porcentaje_comision}
+                      onChange={(e) => handleInputChange("porcentaje_comision", e.target.value)}
+                      placeholder="Ej: 7.0"
+                      className="pr-12"
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                  {formData.tipo_prestamo && (
+                    <div className="text-xs text-muted-foreground">
+                      Sugerido para {formData.tipo_prestamo}:{" "}
+                      {porcentajesDisponibles.map((p, index) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => handleInputChange("porcentaje_comision", (p * 100).toString())}
+                          className="text-primary hover:underline mr-2"
+                        >
+                          {(p * 100).toFixed(1)}%{index < porcentajesDisponibles.length - 1 ? "," : ""}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {errors.porcentaje_comision && <p className="text-sm text-red-500">{errors.porcentaje_comision}</p>}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="observaciones">Observaciones</Label>
+                <Textarea
+                  id="observaciones"
+                  value={formData.observaciones}
+                  onChange={(e) => handleInputChange("observaciones", e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <Button type="submit" className="flex-1">
+                  <Save className="h-4 w-4 mr-2" />
+                  Guardar Cambios
+                </Button>
+                <Button type="button" variant="outline" asChild>
+                  <Link href={`/socios/${socio.id}`}>Cancelar</Link>
+                </Button>
+                <Button type="button" variant="destructive" onClick={handleDelete}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Eliminar
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  )
+}
+"use client"
+
+import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
+import type { Socio, Tarea } from "@/lib/types"
+import { calcularComision, formatearMoneda, formatearPorcentaje } from "@/lib/utils-app"
+import { Navigation } from "@/components/navigation"
+import { TareaCard } from "@/components/tarea-card"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { ArrowLeft, Edit, Phone, MapPin, Calendar, DollarSign, Percent, FileText } from "lucide-react"
+import Link from "next/link"
+
+export default function SocioDetailPage() {
+  const params = useParams()
+  const [socio, setSocio] = useState<Socio | null>(null)
+  const [tareas, setTareas] = useState<Tarea[]>([])
+
+  useEffect(() => {
+    const sociosGuardados = localStorage.getItem("socios")
+    const tareasGuardadas = localStorage.getItem("tareas")
+
+    if (sociosGuardados) {
+      const socios = JSON.parse(sociosGuardados)
+      const socioEncontrado = socios.find((s: Socio) => s.id === params.id)
+      setSocio(socioEncontrado || null)
+    }
+
+    if (tareasGuardadas) {
+      const todasLasTareas = JSON.parse(tareasGuardadas)
+      const tareasDelSocio = todasLasTareas.filter((t: Tarea) => t.socio_id === params.id)
+      setTareas(tareasDelSocio)
+    }
+  }, [params.id])
+
+  const handleToggleComplete = (id: string) => {
+    const tareasActualizadas = tareas.map((tarea) =>
+      tarea.id === id ? { ...tarea, completada: !tarea.completada } : tarea,
+    )
+    setTareas(tareasActualizadas)
+
+    // Actualizar en localStorage
+    const todasLasTareas = JSON.parse(localStorage.getItem("tareas") || "[]")
+    const tareasGlobalesActualizadas = todasLasTareas.map((t: Tarea) =>
+      t.id === id ? { ...t, completada: !t.completada } : t,
+    )
+    localStorage.setItem("tareas", JSON.stringify(tareasGlobalesActualizadas))
+  }
+
+  if (!socio) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/socios">
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Volver
+                  </Link>
+                </Button>
+                <h1 className="text-2xl font-bold">Socio no encontrado</h1>
+              </div>
+              <Navigation />
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-8">
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <p className="text-muted-foreground">El socio solicitado no existe</p>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    )
+  }
+
+  const comision = calcularComision(socio)
+  const tareasPendientes = tareas.filter((t) => !t.completada)
+  const tareasCompletadas = tareas.filter((t) => t.completada)
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/socios">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Volver
+                </Link>
+              </Button>
+              <h1 className="text-2xl font-bold">{socio.nombre}</h1>
+            </div>
+            <Navigation />
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8">
+        <div className="space-y-8">
+          {/* Información principal */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader className="flex flex-row items-start justify-between">
+                  <div>
+                    <CardTitle className="text-2xl">{socio.nombre}</CardTitle>
+                    <p className="text-muted-foreground">DNI: {socio.dni}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={socio.estado === "activo" ? "default" : "secondary"}>{socio.estado}</Badge>
+                    <Button size="sm" asChild>
+                      <Link href={`/socios/${socio.id}/editar`}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar
+                      </Link>
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Información de contacto */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold">Información de Contacto</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <span>{socio.telefono}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <span>{socio.direccion}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Información del préstamo */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold">Información del Préstamo</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Tipo de Préstamo</p>
+                            <p className="font-medium">{socio.tipo_prestamo}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Monto de Crédito</p>
+                            <p className="font-medium">{formatearMoneda(socio.monto_credito)}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Fecha de Otorgamiento</p>
+                            <p className="font-medium">
+                              {new Date(socio.fecha_otorgamiento).toLocaleDateString("es-AR")}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Percent className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Porcentaje de Comisión</p>
+                            <p className="font-medium">{formatearPorcentaje(socio.porcentaje_comision || 0)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {socio.observaciones && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <h3 className="font-semibold">Observaciones</h3>
+                        <p className="text-muted-foreground">{socio.observaciones}</p>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Resumen financiero */}
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Resumen Financiero</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-600">{formatearMoneda(comision)}</p>
+                    <p className="text-sm text-muted-foreground">Comisión Total</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm">Monto Base:</span>
+                      <span className="text-sm font-medium">{formatearMoneda(socio.monto_credito)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm">Porcentaje:</span>
+                      <span className="text-sm font-medium">{formatearPorcentaje(socio.porcentaje_comision || 0)}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Estadísticas</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between">
+                    <span className="text-sm">Tareas Totales:</span>
+                    <span className="text-sm font-medium">{tareas.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Pendientes:</span>
+                    <span className="text-sm font-medium text-orange-600">{tareasPendientes.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Completadas:</span>
+                    <span className="text-sm font-medium text-green-600">{tareasCompletadas.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Días como socio:</span>
+                    <span className="text-sm font-medium">
+                      {Math.floor(
+                        (new Date().getTime() - new Date(socio.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24),
+                      )}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Tareas asociadas */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Tareas Asociadas</CardTitle>
+              <Button size="sm" asChild>
+                <Link href={`/tareas/nueva?socio_id=${socio.id}`}>Agregar Tarea</Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {tareas.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {tareas
+                    .sort((a, b) => new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime())
+                    .map((tarea) => (
+                      <TareaCard key={tarea.id} tarea={tarea} onToggleComplete={handleToggleComplete} />
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-4">No hay tareas asociadas a este socio</p>
+                  <Button asChild>
+                    <Link href={`/tareas/nueva?socio_id=${socio.id}`}>Crear primera tarea</Link>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    </div>
+  )
+}
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import type { Socio } from "@/lib/types"
+import { COMISIONES_POR_TIPO, TIPOS_PRESTAMO } from "@/lib/data"
+import { MobileNavigation } from "@/components/mobile-navigation"
+import { MobileHeader } from "@/components/mobile-header"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Save } from "lucide-react"
+
+export default function NuevoSocioPage() {
+  const router = useRouter()
+  const [formData, setFormData] = useState({
+    nombre: "",
+    dni: "",
+    telefono: "",
+    direccion: "",
+    estado: "activo" as "activo" | "pasivo",
+    tipo_prestamo: "" as keyof typeof COMISIONES_POR_TIPO,
+    monto_credito: "",
+    fecha_otorgamiento: "",
+    porcentaje_comision: "",
+    observaciones: "",
+  })
+
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }))
+    }
+
+    // Auto-completar porcentaje de comisión cuando se selecciona tipo de préstamo
+    if (field === "tipo_prestamo" && value) {
+      const porcentajeDefecto = COMISIONES_POR_TIPO[value as keyof typeof COMISIONES_POR_TIPO]?.porcentaje_por_defecto
+      if (porcentajeDefecto) {
+        setFormData((prev) => ({
+          ...prev,
+          [field]: value,
+          porcentaje_comision: (porcentajeDefecto * 100).toString(),
+        }))
+      }
+    }
+
+    // Validar DNI en tiempo real
+    if (field === "dni" && value) {
+      const dniLimpio = value.replace(/\D/g, "").slice(0, 8)
+      setFormData((prev) => ({ ...prev, [field]: dniLimpio }))
+      return
+    }
+
+    // Validar teléfono en tiempo real
+    if (field === "telefono" && value) {
+      const telefonoLimpio = value.replace(/[^\d\-+$$$$\s]/g, "")
+      setFormData((prev) => ({ ...prev, [field]: telefonoLimpio }))
+      return
+    }
+  }
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    if (!formData.nombre.trim()) newErrors.nombre = "El nombre es requerido"
+    if (!formData.dni.trim()) newErrors.dni = "El DNI es requerido"
+    if (!formData.telefono.trim()) newErrors.telefono = "El teléfono es requerido"
+    if (!formData.direccion.trim()) newErrors.direccion = "La dirección es requerida"
+    if (!formData.tipo_prestamo) newErrors.tipo_prestamo = "El tipo de préstamo es requerido"
+    if (!formData.monto_credito || Number.parseFloat(formData.monto_credito) <= 0) {
+      newErrors.monto_credito = "El monto de crédito debe ser mayor a 0"
+    }
+    if (!formData.fecha_otorgamiento) newErrors.fecha_otorgamiento = "La fecha de otorgamiento es requerida"
+
+    // Validar DNI único
+    const sociosExistentes = JSON.parse(localStorage.getItem("socios") || "[]")
+    const dniExiste = sociosExistentes.some((s: Socio) => s.dni === formData.dni.trim())
+    if (dniExiste) newErrors.dni = "Ya existe un socio con este DNI"
+
+    // Validar formato de DNI
+    if (formData.dni.trim().length < 7 || formData.dni.trim().length > 8) {
+      newErrors.dni = "El DNI debe tener entre 7 y 8 dígitos"
+    }
+
+    if (
+      formData.porcentaje_comision &&
+      (Number.parseFloat(formData.porcentaje_comision) <= 0 || Number.parseFloat(formData.porcentaje_comision) > 100)
+    ) {
+      newErrors.porcentaje_comision = "El porcentaje debe estar entre 0.1% y 100%"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!validateForm()) return
+
+    const nuevoSocio: Socio = {
+      id: Date.now().toString(),
+      nombre: formData.nombre.trim(),
+      dni: formData.dni.trim(),
+      telefono: formData.telefono.trim(),
+      direccion: formData.direccion.trim(),
+      estado: formData.estado,
+      tipo_prestamo: formData.tipo_prestamo,
+      monto_credito: Number.parseFloat(formData.monto_credito),
+      fecha_otorgamiento: formData.fecha_otorgamiento,
+      porcentaje_comision: formData.porcentaje_comision
+        ? Number.parseFloat(formData.porcentaje_comision) / 100
+        : undefined,
+      observaciones: formData.observaciones.trim() || undefined,
+      fecha_creacion: new Date().toISOString(),
+    }
+
+    // Guardar en localStorage
+    const sociosExistentes = JSON.parse(localStorage.getItem("socios") || "[]")
+    const sociosActualizados = [...sociosExistentes, nuevoSocio]
+    localStorage.setItem("socios", JSON.stringify(sociosActualizados))
+
+    router.push("/socios")
+  }
+
+  const porcentajesDisponibles = formData.tipo_prestamo
+    ? COMISIONES_POR_TIPO[formData.tipo_prestamo]?.porcentajes_posibles || []
+    : []
+
+  return (
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <MobileHeader title="Nuevo Socio" showBack backHref="/socios" />
+
+      <main className="px-4 py-6">
+        <Card className="shadow-pink border-pink">
+          <CardHeader>
+            <CardTitle className="text-lg">Información del Socio</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Información personal */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nombre">Nombre *</Label>
+                  <Input
+                    id="nombre"
+                    value={formData.nombre}
+                    onChange={(e) => handleInputChange("nombre", e.target.value)}
+                    className={`h-12 ${errors.nombre ? "border-red-500" : ""}`}
+                  />
+                  {errors.nombre && <p className="text-sm text-red-500">{errors.nombre}</p>}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="dni">DNI *</Label>
+                    <Input
+                      id="dni"
+                      value={formData.dni}
+                      onChange={(e) => handleInputChange("dni", e.target.value)}
+                      className={`h-12 ${errors.dni ? "border-red-500" : ""}`}
+                      placeholder="12345678"
+                      maxLength={8}
+                    />
+                    {errors.dni && <p className="text-sm text-red-500">{errors.dni}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="telefono">Teléfono *</Label>
+                    <Input
+                      id="telefono"
+                      value={formData.telefono}
+                      onChange={(e) => handleInputChange("telefono", e.target.value)}
+                      className={`h-12 ${errors.telefono ? "border-red-500" : ""}`}
+                      placeholder="11-1234-5678"
+                    />
+                    {errors.telefono && <p className="text-sm text-red-500">{errors.telefono}</p>}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="direccion">Dirección *</Label>
+                  <Input
+                    id="direccion"
+                    value={formData.direccion}
+                    onChange={(e) => handleInputChange("direccion", e.target.value)}
+                    className={`h-12 ${errors.direccion ? "border-red-500" : ""}`}
+                  />
+                  {errors.direccion && <p className="text-sm text-red-500">{errors.direccion}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="estado">Estado *</Label>
+                  <Select value={formData.estado} onValueChange={(value) => handleInputChange("estado", value)}>
+                    <SelectTrigger className="h-12">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="activo">Activo</SelectItem>
+                      <SelectItem value="pasivo">Pasivo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Información del préstamo */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="tipo_prestamo">Tipo de Préstamo *</Label>
+                  <Select
+                    value={formData.tipo_prestamo}
+                    onValueChange={(value) => handleInputChange("tipo_prestamo", value)}
+                  >
+                    <SelectTrigger className={`h-12 ${errors.tipo_prestamo ? "border-red-500" : ""}`}>
+                      <SelectValue placeholder="Seleccionar tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIPOS_PRESTAMO.map((tipo) => (
+                        <SelectItem key={tipo} value={tipo}>
+                          {tipo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.tipo_prestamo && <p className="text-sm text-red-500">{errors.tipo_prestamo}</p>}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="monto_credito">Monto de Crédito *</Label>
+                    <Input
+                      id="monto_credito"
+                      type="number"
+                      step="0.01"
+                      value={formData.monto_credito}
+                      onChange={(e) => handleInputChange("monto_credito", e.target.value)}
+                      className={`h-12 ${errors.monto_credito ? "border-red-500" : ""}`}
+                    />
+                    {errors.monto_credito && <p className="text-sm text-red-500">{errors.monto_credito}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="fecha_otorgamiento">Fecha *</Label>
+                    <Input
+                      id="fecha_otorgamiento"
+                      type="date"
+                      value={formData.fecha_otorgamiento}
+                      onChange={(e) => handleInputChange("fecha_otorgamiento", e.target.value)}
+                      className={`h-12 ${errors.fecha_otorgamiento ? "border-red-500" : ""}`}
+                    />
+                    {errors.fecha_otorgamiento && <p className="text-sm text-red-500">{errors.fecha_otorgamiento}</p>}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="porcentaje_comision">Porcentaje de Comisión (%)</Label>
+                  <div className="relative">
+                    <Input
+                      id="porcentaje_comision"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      value={formData.porcentaje_comision}
+                      onChange={(e) => handleInputChange("porcentaje_comision", e.target.value)}
+                      placeholder="Ej: 7.0"
+                      className="h-12 pr-12"
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                  {formData.tipo_prestamo && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {porcentajesDisponibles.map((p) => (
+                        <Button
+                          key={p}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleInputChange("porcentaje_comision", (p * 100).toString())}
+                          className="text-xs"
+                        >
+                          {(p * 100).toFixed(1)}%
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="observaciones">Observaciones</Label>
+                <Textarea
+                  id="observaciones"
+                  value={formData.observaciones}
+                  onChange={(e) => handleInputChange("observaciones", e.target.value)}
+                  rows={3}
+                  className="resize-none"
+                />
+              </div>
+
+              <div className="space-y-3 pt-4">
+                <Button type="submit" className="w-full h-12">
+                  <Save className="h-4 w-4 mr-2" />
+                  Guardar Socio
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-12 bg-transparent"
+                  onClick={() => router.back()}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </main>
+
+      <MobileNavigation />
+    </div>
+  )
+}
+export default function Loading() {
+  return null
+}
+"use client"
+
+import { useState, useEffect } from "react"
+import type { Socio } from "@/lib/types"
+import { MobileNavigation } from "@/components/mobile-navigation"
+import { MobileHeader } from "@/components/mobile-header"
+import { MobileSocioCard } from "@/components/mobile-socio-card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent } from "@/components/ui/card"
+import { Search, Filter } from "lucide-react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+
+export default function SociosPage() {
+  const [socios, setSocios] = useState<Socio[]>([])
+  const [filtroNombre, setFiltroNombre] = useState("")
+  const [filtroEstado, setFiltroEstado] = useState<string>("todos")
+  const [filtroTipo, setFiltroTipo] = useState<string>("todos")
+  const router = useRouter()
+
+  useEffect(() => {
+    const sociosGuardados = localStorage.getItem("socios")
+    if (sociosGuardados) {
+      setSocios(JSON.parse(sociosGuardados))
+    }
+  }, [])
+
+  const sociosFiltrados = socios.filter((socio) => {
+    const coincideNombre =
+      socio.nombre.toLowerCase().includes(filtroNombre.toLowerCase()) || socio.dni.includes(filtroNombre)
+    const coincideEstado = filtroEstado === "todos" || socio.estado === filtroEstado
+    const coincideTipo = filtroTipo === "todos" || socio.tipo_prestamo === filtroTipo
+
+    return coincideNombre && coincideEstado && coincideTipo
+  })
+
+  const handleEditSocio = (socio: Socio) => {
+    router.push(`/socios/${socio.id}/editar`)
+  }
+
+  const tiposUnicos = [...new Set(socios.map((s) => s.tipo_prestamo))]
+
+  return (
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <MobileHeader title="Socios" showAdd addHref="/socios/nuevo" addLabel="Nuevo" />
+
+      <main className="px-4 py-6 space-y-4">
+        {/* Barra de búsqueda y filtros */}
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Buscar por nombre o DNI..."
+              value={filtroNombre}
+              onChange={(e) => setFiltroNombre(e.target.value)}
+              className="pl-10 h-12"
+            />
+          </div>
+
+          {/* Filtros en móvil */}
+          <div className="flex gap-2">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filtros
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="h-[300px]">
+                <SheetHeader>
+                  <SheetTitle>Filtrar Socios</SheetTitle>
+                </SheetHeader>
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <label className="text-sm font-medium">Estado</label>
+                    <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="activo">Activo</SelectItem>
+                        <SelectItem value="pasivo">Pasivo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium">Tipo de Préstamo</label>
+                    <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        {tiposUnicos.map((tipo) => (
+                          <SelectItem key={tipo} value={tipo}>
+                            {tipo}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+        </div>
+
+        {/* Resultados */}
+        <div className="text-sm text-muted-foreground">
+          {sociosFiltrados.length} de {socios.length} socios
+        </div>
+
+        {/* Lista de socios */}
+        {sociosFiltrados.length > 0 ? (
+          <div className="space-y-3">
+            {sociosFiltrados.map((socio) => (
+              <MobileSocioCard key={socio.id} socio={socio} onEdit={handleEditSocio} />
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <p className="text-muted-foreground mb-4 text-center">
+                {socios.length === 0
+                  ? "No hay socios registrados"
+                  : "No se encontraron socios con los filtros aplicados"}
+              </p>
+              {socios.length === 0 && (
+                <Button asChild>
+                  <Link href="/socios/nuevo">Agregar primer socio</Link>
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </main>
+
+      <MobileNavigation />
+    </div>
+  )
+}
+export default function Loading() {
+  return null
+}
+"use client"
+
+import type React from "react"
+
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import type { Tarea, Socio } from "@/lib/types"
+import { MobileNavigation } from "@/components/mobile-navigation"
+import { MobileHeader } from "@/components/mobile-header"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Save } from "lucide-react"
+
+export default function NuevaTareaPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [socios, setSocios] = useState<Socio[]>([])
+  const [formData, setFormData] = useState({
+    titulo: "",
+    descripcion: "",
+    fecha_vencimiento: "",
+    prioridad: "media" as "baja" | "media" | "alta",
+    socio_id: searchParams.get("socio_id") || "0",
+  })
+
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const sociosGuardados = localStorage.getItem("socios")
+    if (sociosGuardados) {
+      setSocios(JSON.parse(sociosGuardados))
+    }
+  }, [])
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }))
+    }
+  }
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    if (!formData.titulo.trim()) newErrors.titulo = "El título es requerido"
+    if (!formData.descripcion.trim()) newErrors.descripcion = "La descripción es requerida"
+    if (!formData.fecha_vencimiento) newErrors.fecha_vencimiento = "La fecha de vencimiento es requerida"
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!validateForm()) return
+
+    const nuevaTarea: Tarea = {
+      id: Date.now().toString(),
+      titulo: formData.titulo.trim(),
+      descripcion: formData.descripcion.trim(),
+      fecha_vencimiento: formData.fecha_vencimiento,
+      completada: false,
+      socio_id: formData.socio_id === "0" ? undefined : formData.socio_id,
+      prioridad: formData.prioridad,
+      fecha_creacion: new Date().toISOString(),
+    }
+
+    // Guardar en localStorage
+    const tareasExistentes = JSON.parse(localStorage.getItem("tareas") || "[]")
+    const tareasActualizadas = [...tareasExistentes, nuevaTarea]
+    localStorage.setItem("tareas", JSON.stringify(tareasActualizadas))
+
+    router.push("/tareas")
+  }
+
+  const socioSeleccionado = socios.find((s) => s.id === formData.socio_id)
+
+  return (
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <MobileHeader title="Nueva Tarea" showBack backHref="/tareas" />
+
+      <main className="px-4 py-6">
+        <Card className="shadow-pink border-pink">
+          <CardHeader>
+            <CardTitle className="text-lg">Información de la Tarea</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="titulo">Título *</Label>
+                <Input
+                  id="titulo"
+                  value={formData.titulo}
+                  onChange={(e) => handleInputChange("titulo", e.target.value)}
+                  className={`h-12 ${errors.titulo ? "border-red-500" : ""}`}
+                  placeholder="Ej: Llamar para seguimiento de pago"
+                />
+                {errors.titulo && <p className="text-sm text-red-500">{errors.titulo}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="descripcion">Descripción *</Label>
+                <Textarea
+                  id="descripcion"
+                  value={formData.descripcion}
+                  onChange={(e) => handleInputChange("descripcion", e.target.value)}
+                  className={`resize-none ${errors.descripcion ? "border-red-500" : ""}`}
+                  rows={3}
+                  placeholder="Describe los detalles de la tarea..."
+                />
+                {errors.descripcion && <p className="text-sm text-red-500">{errors.descripcion}</p>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fecha_vencimiento">Fecha de Vencimiento *</Label>
+                  <Input
+                    id="fecha_vencimiento"
+                    type="datetime-local"
+                    value={formData.fecha_vencimiento}
+                    onChange={(e) => handleInputChange("fecha_vencimiento", e.target.value)}
+                    className={`h-12 ${errors.fecha_vencimiento ? "border-red-500" : ""}`}
+                  />
+                  {errors.fecha_vencimiento && <p className="text-sm text-red-500">{errors.fecha_vencimiento}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="prioridad">Prioridad</Label>
+                  <Select value={formData.prioridad} onValueChange={(value) => handleInputChange("prioridad", value)}>
+                    <SelectTrigger className="h-12">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="baja">Baja</SelectItem>
+                      <SelectItem value="media">Media</SelectItem>
+                      <SelectItem value="alta">Alta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="socio_id">Asociar con Socio (Opcional)</Label>
+                <Select value={formData.socio_id} onValueChange={(value) => handleInputChange("socio_id", value)}>
+                  <SelectTrigger className="h-12">
+                    <SelectValue placeholder="Seleccionar socio..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Sin asociar</SelectItem>
+                    {socios.map((socio) => (
+                      <SelectItem key={socio.id} value={socio.id}>
+                        {socio.nombre} - {socio.dni}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {socioSeleccionado && (
+                  <p className="text-sm text-muted-foreground">
+                    Asociada con: {socioSeleccionado.nombre} ({socioSeleccionado.telefono})
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-3 pt-4">
+                <Button type="submit" className="w-full h-12">
+                  <Save className="h-4 w-4 mr-2" />
+                  Guardar Tarea
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-12 bg-transparent"
+                  onClick={() => router.back()}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </main>
+
+      <MobileNavigation />
+    </div>
+  )
+}
+export default function Loading() {
+  return null
+}
+"use client"
+
+import { useState, useEffect } from "react"
+import type { Tarea } from "@/lib/types"
+import { MobileNavigation } from "@/components/mobile-navigation"
+import { MobileHeader } from "@/components/mobile-header"
+import { MobileTareaCard } from "@/components/mobile-tarea-card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent } from "@/components/ui/card"
+import { Search, Filter } from "lucide-react"
+import Link from "next/link"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+
+export default function TareasPage() {
+  const [tareas, setTareas] = useState<Tarea[]>([])
+  const [filtroTitulo, setFiltroTitulo] = useState("")
+  const [filtroEstado, setFiltroEstado] = useState<string>("pendientes")
+  const [filtroPrioridad, setFiltroPrioridad] = useState<string>("todas")
+
+  useEffect(() => {
+    const tareasGuardadas = localStorage.getItem("tareas")
+    if (tareasGuardadas) {
+      setTareas(JSON.parse(tareasGuardadas))
+    }
+  }, [])
+
+  const tareasFiltradas = tareas.filter((tarea) => {
+    const coincideTitulo =
+      tarea.titulo.toLowerCase().includes(filtroTitulo.toLowerCase()) ||
+      tarea.descripcion.toLowerCase().includes(filtroTitulo.toLowerCase())
+
+    let coincideEstado = true
+    if (filtroEstado === "pendientes") coincideEstado = !tarea.completada
+    else if (filtroEstado === "completadas") coincideEstado = tarea.completada
+    else if (filtroEstado === "vencidas") {
+      coincideEstado = new Date(tarea.fecha_vencimiento) < new Date() && !tarea.completada
+    }
+
+    const coincidePrioridad = filtroPrioridad === "todas" || tarea.prioridad === filtroPrioridad
+
+    return coincideTitulo && coincideEstado && coincidePrioridad
+  })
+
+  const handleToggleComplete = (id: string) => {
+    const tareasActualizadas = tareas.map((tarea) =>
+      tarea.id === id ? { ...tarea, completada: !tarea.completada } : tarea,
+    )
+    setTareas(tareasActualizadas)
+    localStorage.setItem("tareas", JSON.stringify(tareasActualizadas))
+  }
+
+  const handleEditTarea = (tarea: Tarea) => {
+    console.log("Editar tarea:", tarea)
+  }
+
+  // Ordenar tareas: vencidas primero, luego por fecha de vencimiento
+  const tareasOrdenadas = tareasFiltradas.sort((a, b) => {
+    const fechaA = new Date(a.fecha_vencimiento)
+    const fechaB = new Date(b.fecha_vencimiento)
+    const hoy = new Date()
+
+    const aVencida = fechaA < hoy && !a.completada
+    const bVencida = fechaB < hoy && !b.completada
+
+    if (aVencida && !bVencida) return -1
+    if (!aVencida && bVencida) return 1
+
+    return fechaA.getTime() - fechaB.getTime()
+  })
+
+  return (
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <MobileHeader title="Tareas" showAdd addHref="/tareas/nueva" addLabel="Nueva" />
+
+      <main className="px-4 py-6 space-y-4">
+        {/* Barra de búsqueda y filtros */}
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Buscar tareas..."
+              value={filtroTitulo}
+              onChange={(e) => setFiltroTitulo(e.target.value)}
+              className="pl-10 h-12"
+            />
+          </div>
+
+          {/* Filtros en móvil */}
+          <div className="flex gap-2">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filtros
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="h-[300px]">
+                <SheetHeader>
+                  <SheetTitle>Filtrar Tareas</SheetTitle>
+                </SheetHeader>
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <label className="text-sm font-medium">Estado</label>
+                    <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todas">Todas</SelectItem>
+                        <SelectItem value="pendientes">Pendientes</SelectItem>
+                        <SelectItem value="completadas">Completadas</SelectItem>
+                        <SelectItem value="vencidas">Vencidas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium">Prioridad</label>
+                    <Select value={filtroPrioridad} onValueChange={setFiltroPrioridad}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Prioridad" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todas">Todas</SelectItem>
+                        <SelectItem value="alta">Alta</SelectItem>
+                        <SelectItem value="media">Media</SelectItem>
+                        <SelectItem value="baja">Baja</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+        </div>
+
+        {/* Resultados */}
+        <div className="text-sm text-muted-foreground">
+          {tareasFiltradas.length} de {tareas.length} tareas
+        </div>
+
+        {/* Lista de tareas */}
+        {tareasOrdenadas.length > 0 ? (
+          <div className="space-y-3">
+            {tareasOrdenadas.map((tarea) => (
+              <MobileTareaCard
+                key={tarea.id}
+                tarea={tarea}
+                onToggleComplete={handleToggleComplete}
+                onEdit={handleEditTarea}
+              />
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <p className="text-muted-foreground mb-4 text-center">
+                {tareas.length === 0
+                  ? "No hay tareas registradas"
+                  : "No se encontraron tareas con los filtros aplicados"}
+              </p>
+              {tareas.length === 0 && (
+                <Button asChild>
+                  <Link href="/tareas/nueva">Crear primera tarea</Link>
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </main>
+
+      <MobileNavigation />
+    </div>
+  )
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 330 70% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 330 70% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 330 70% 15%;
+    --primary: 330 81% 60%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 320 20% 96%;
+    --secondary-foreground: 330 70% 35%;
+    --muted: 320 20% 96%;
+    --muted-foreground: 330 20% 45%;
+    --accent: 315 40% 94%;
+    --accent-foreground: 330 70% 35%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 320 20% 90%;
+    --input: 320 20% 90%;
+    --ring: 330 81% 60%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 330 20% 8%;
+    --foreground: 320 20% 95%;
+    --card: 330 20% 8%;
+    --card-foreground: 320 20% 95%;
+    --popover: 330 20% 8%;
+    --popover-foreground: 320 20% 95%;
+    --primary: 330 81% 60%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 330 20% 15%;
+    --secondary-foreground: 320 20% 95%;
+    --muted: 330 20% 15%;
+    --muted-foreground: 330 20% 65%;
+    --accent: 330 20% 15%;
+    --accent-foreground: 320 20% 95%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 330 20% 15%;
+    --input: 330 20% 15%;
+    --ring: 330 81% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Estilos personalizados para móvil */
+.gradient-pink {
+  background: linear-gradient(135deg, hsl(330 81% 60%) 0%, hsl(315 70% 70%) 100%);
+}
+
+.text-gradient-pink {
+  background: linear-gradient(135deg, hsl(330 81% 60%) 0%, hsl(315 70% 70%) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.shadow-pink {
+  box-shadow: 0 4px 14px 0 rgba(236, 72, 153, 0.15);
+}
+
+.border-pink {
+  border-color: hsl(330 81% 85%);
+}
+
+.bg-pink-gradient {
+  background: linear-gradient(135deg, hsl(330 100% 98%) 0%, hsl(315 40% 94%) 100%);
+}
+
+/* Optimizaciones para móvil */
+@media (max-width: 768px) {
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Mejorar el área de toque */
+  button,
+  a {
+    min-height: 44px;
+  }
+
+  /* Espaciado optimizado para móvil */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* Animaciones suaves */
+.transition-all {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Estilos para el bottom navigation */
+.bottom-nav-shadow {
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+import type React from "react"
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+
+const inter = Inter({ subsets: ["latin"] })
+
+export const metadata: Metadata = {
+  title: "Gestión de Socios - Préstamos",
+  description: "Aplicación para gestionar socios de préstamos, comisiones y tareas",
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="es">
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
+  )
+}
+"use client"
+
+import { useState, useEffect } from "react"
+import type { Socio, Tarea } from "@/lib/types"
+import { obtenerResumenMensual, formatearMoneda } from "@/lib/utils-app"
+import { MobileNavigation } from "@/components/mobile-navigation"
+import { MobileHeader } from "@/components/mobile-header"
+import { MobileSocioCard } from "@/components/mobile-socio-card"
+import { MobileTareaCard } from "@/components/mobile-tarea-card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Users, DollarSign, TrendingUp, AlertCircle, Plus } from "lucide-react"
+import Link from "next/link"
+
+export default function Dashboard() {
+  const [socios, setSocios] = useState<Socio[]>([])
+  const [tareas, setTareas] = useState<Tarea[]>([])
+
+  useEffect(() => {
+    // Cargar datos del localStorage
+    const sociosGuardados = localStorage.getItem("socios")
+    const tareasGuardadas = localStorage.getItem("tareas")
+
+    if (sociosGuardados) {
+      setSocios(JSON.parse(sociosGuardados))
+    }
+    if (tareasGuardadas) {
+      setTareas(JSON.parse(tareasGuardadas))
+    }
+  }, [])
+
+  const resumen = obtenerResumenMensual(socios)
+  const tareasVencidas = tareas.filter((t) => new Date(t.fecha_vencimiento) < new Date() && !t.completada).length
+  const tareasProximas = tareas.filter((t) => {
+    const fechaVencimiento = new Date(t.fecha_vencimiento)
+    const hoy = new Date()
+    const diasHastaVencimiento = (fechaVencimiento.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)
+    return diasHastaVencimiento <= 7 && diasHastaVencimiento > 0 && !t.completada
+  }).length
+
+  const sociosRecientes = socios
+    .sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime())
+    .slice(0, 3)
+
+  const tareasRecientes = tareas
+    .filter((t) => !t.completada)
+    .sort((a, b) => new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime())
+    .slice(0, 3)
+
+  return (
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <MobileHeader title="Gestión de Socios" />
+
+      <main className="px-4 py-6 space-y-6">
+        {/* Métricas principales */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="shadow-pink border-pink">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Socios</CardTitle>
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-gradient-pink">{resumen.totalSocios}</div>
+              <p className="text-xs text-muted-foreground">{resumen.sociosActivos} activos</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-pink border-pink">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Comisiones</CardTitle>
+                <DollarSign className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-gradient-pink">{formatearMoneda(resumen.totalGeneral)}</div>
+              <p className="text-xs text-muted-foreground">Este mes</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-pink border-pink">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Nuevos</CardTitle>
+                <TrendingUp className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-gradient-pink">{resumen.sociosNuevos}</div>
+              <p className="text-xs text-muted-foreground">Este mes</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-pink border-pink">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Tareas</CardTitle>
+                <AlertCircle className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-red-600">{tareasVencidas}</div>
+              <p className="text-xs text-muted-foreground">{tareasProximas} próximas</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Acciones rápidas */}
+        <div className="grid grid-cols-2 gap-3">
+          <Button asChild className="h-12">
+            <Link href="/socios/nuevo">
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Socio
+            </Link>
+          </Button>
+          <Button variant="outline" asChild className="h-12 bg-transparent">
+            <Link href="/tareas/nueva">
+              <Plus className="h-4 w-4 mr-2" />
+              Nueva Tarea
+            </Link>
+          </Button>
+        </div>
+
+        {/* Socios recientes */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Socios Recientes</h2>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/socios">Ver todos</Link>
+            </Button>
+          </div>
+          <div className="space-y-3">
+            {sociosRecientes.length > 0 ? (
+              sociosRecientes.map((socio) => <MobileSocioCard key={socio.id} socio={socio} />)
+            ) : (
+              <Card>
+                <CardContent className="flex items-center justify-center py-8">
+                  <p className="text-muted-foreground text-sm">No hay socios registrados</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+
+        {/* Tareas pendientes */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Tareas Pendientes</h2>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/tareas">Ver todas</Link>
+            </Button>
+          </div>
+          <div className="space-y-3">
+            {tareasRecientes.length > 0 ? (
+              tareasRecientes.map((tarea) => <MobileTareaCard key={tarea.id} tarea={tarea} />)
+            ) : (
+              <Card>
+                <CardContent className="flex items-center justify-center py-8">
+                  <p className="text-muted-foreground text-sm">No hay tareas pendientes</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </main>
+
+      <MobileNavigation />
+    </div>
+  )
+}
+"use client"
+
+import { Button } from "@/components/ui/button"
+import { ArrowLeft, Plus } from "lucide-react"
+import Link from "next/link"
+
+interface MobileHeaderProps {
+  title: string
+  showBack?: boolean
+  backHref?: string
+  showAdd?: boolean
+  addHref?: string
+  addLabel?: string
+}
+
+export function MobileHeader({ title, showBack, backHref, showAdd, addHref, addLabel }: MobileHeaderProps) {
+  return (
+    <header className="sticky top-0 z-40 bg-white border-b border-pink shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-3">
+          {showBack && backHref && (
+            <Button variant="ghost" size="sm" asChild className="p-2">
+              <Link href={backHref}>
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+          )}
+          <h1 className="text-lg font-bold text-primary truncate">{title}</h1>
+        </div>
+
+        {showAdd && addHref && (
+          <Button size="sm" asChild className="bg-primary hover:bg-primary/90 shadow-pink">
+            <Link href={addHref}>
+              <Plus className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">{addLabel}</span>
+            </Link>
+          </Button>
+        )}
+      </div>
+    </header>
+  )
+}
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Users, CheckSquare, BarChart3, Home } from "lucide-react"
+import { useState } from "react"
+
+const navigation = [
+  { name: "Dashboard", href: "/", icon: Home },
+  { name: "Socios", href: "/socios", icon: Users },
+  { name: "Tareas", href: "/tareas", icon: CheckSquare },
+  { name: "Reportes", href: "/reportes", icon: BarChart3 },
+]
+
+export function MobileNavigation() {
+  const pathname = usePathname()
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <>
+      {/* Navegación móvil - Bottom Tab Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-pink md:hidden">
+        <div className="grid grid-cols-4 h-16">
+          {navigation.map((item) => {
+            const Icon = item.icon
+            const isActive = pathname === item.href
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`flex flex-col items-center justify-center space-y-1 ${
+                  isActive
+                    ? "text-primary bg-primary/10"
+                    : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+                <span className="text-xs font-medium">{item.name}</span>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Navegación desktop - Header */}
+      <div className="hidden md:flex space-x-2">
+        {navigation.map((item) => {
+          const Icon = item.icon
+          return (
+            <Button
+              key={item.name}
+              variant={pathname === item.href ? "default" : "ghost"}
+              asChild
+              className={`flex items-center gap-2 ${
+                pathname === item.href ? "bg-primary text-white shadow-pink" : "hover:bg-primary/10 hover:text-primary"
+              }`}
+            >
+              <Link href={item.href}>
+                <Icon className="h-4 w-4" />
+                {item.name}
+              </Link>
+            </Button>
+          )
+        })}
+      </div>
+    </>
+  )
+}
+"use client"
+
+import Link from "next/link"
+import type { Socio } from "@/lib/types"
+import { calcularComision, formatearMoneda, formatearPorcentaje } from "@/lib/utils-app"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Eye, Edit, Phone, MapPin, DollarSign } from "lucide-react"
+
+interface MobileSocioCardProps {
+  socio: Socio
+  onEdit?: (socio: Socio) => void
+}
+
+export function MobileSocioCard({ socio, onEdit }: MobileSocioCardProps) {
+  const comision = calcularComision(socio)
+
+  return (
+    <Card className="w-full shadow-pink border-pink hover:shadow-lg transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-primary truncate">{socio.nombre}</h3>
+            <p className="text-sm text-muted-foreground">DNI: {socio.dni}</p>
+            <p className="text-xs text-muted-foreground mt-1">{socio.tipo_prestamo}</p>
+          </div>
+          <Badge
+            className={
+              socio.estado === "activo"
+                ? "bg-primary hover:bg-primary/80 text-white"
+                : "bg-primary/70 hover:bg-primary/60 text-white"
+            }
+          >
+            {socio.estado}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Información financiera */}
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-xs text-muted-foreground">Crédito</p>
+              <p className="font-medium">{formatearMoneda(socio.monto_credito)}</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Comisión</p>
+            <p className="font-medium text-green-600">{formatearMoneda(comision)}</p>
+            <p className="text-xs text-muted-foreground">{formatearPorcentaje(socio.porcentaje_comision || 0)}</p>
+          </div>
+        </div>
+
+        {/* Información de contacto */}
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <Phone className="h-4 w-4 text-muted-foreground" />
+            <span className="truncate">{socio.telefono}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+            <span className="truncate text-xs">{socio.direccion}</span>
+          </div>
+        </div>
+
+        {/* Botones de acción */}
+        <div className="flex gap-2 pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="flex-1 border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
+          >
+            <Link href={`/socios/${socio.id}`}>
+              <Eye className="h-4 w-4 mr-1" />
+              Ver
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="flex-1 border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
+          >
+            <Link href={`/socios/${socio.id}/editar`}>
+              <Edit className="h-4 w-4 mr-1" />
+              Editar
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+"use client"
+
+import type { Tarea } from "@/lib/types"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Calendar, AlertCircle, CheckCircle2, Clock } from "lucide-react"
+
+interface MobileTareaCardProps {
+  tarea: Tarea
+  onToggleComplete?: (id: string) => void
+  onEdit?: (tarea: Tarea) => void
+}
+
+export function MobileTareaCard({ tarea, onToggleComplete, onEdit }: MobileTareaCardProps) {
+  const fechaVencimiento = new Date(tarea.fecha_vencimiento)
+  const hoy = new Date()
+  const esVencida = fechaVencimiento < hoy && !tarea.completada
+  const esProxima = fechaVencimiento.getTime() - hoy.getTime() < 7 * 24 * 60 * 60 * 1000 && !tarea.completada
+
+  const getPrioridadColor = (prioridad: string) => {
+    switch (prioridad) {
+      case "alta":
+        return "destructive"
+      case "media":
+        return "default"
+      case "baja":
+        return "secondary"
+      default:
+        return "secondary"
+    }
+  }
+
+  const getStatusIcon = () => {
+    if (tarea.completada) return <CheckCircle2 className="h-4 w-4 text-green-600" />
+    if (esVencida) return <AlertCircle className="h-4 w-4 text-red-600" />
+    if (esProxima) return <Clock className="h-4 w-4 text-yellow-600" />
+    return <Calendar className="h-4 w-4 text-muted-foreground" />
+  }
+
+  return (
+    <Card className={`w-full shadow-pink border-pink ${tarea.completada ? "opacity-75" : ""}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-start gap-3">
+          {onToggleComplete && (
+            <Checkbox checked={tarea.completada} onCheckedChange={() => onToggleComplete(tarea.id)} className="mt-1" />
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between mb-2">
+              <h3 className={`font-medium text-sm ${tarea.completada ? "line-through" : ""} truncate`}>
+                {tarea.titulo}
+              </h3>
+              <Badge variant={getPrioridadColor(tarea.prioridad) as any} className="ml-2 text-xs">
+                {tarea.prioridad}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground line-clamp-2">{tarea.descripcion}</p>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center gap-2 text-xs">
+          {getStatusIcon()}
+          <span className={esVencida ? "text-red-600 font-medium" : "text-muted-foreground"}>
+            {fechaVencimiento.toLocaleDateString("es-AR")}
+          </span>
+        </div>
+
+        {esVencida && <div className="text-xs text-red-600 font-medium">¡Vencida!</div>}
+        {esProxima && !esVencida && <div className="text-xs text-yellow-600 font-medium">Vence pronto</div>}
+
+        {onEdit && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onEdit(tarea)}
+            className="w-full border-primary text-primary hover:bg-primary hover:text-white text-xs"
+          >
+            Editar
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Users, CheckSquare, BarChart3, Home } from "lucide-react"
+
+const navigation = [
+  { name: "Dashboard", href: "/", icon: Home },
+  { name: "Socios", href: "/socios", icon: Users },
+  { name: "Tareas", href: "/tareas", icon: CheckSquare },
+  { name: "Reportes", href: "/reportes", icon: BarChart3 },
+]
+
+export function Navigation() {
+  const pathname = usePathname()
+
+  return (
+    <nav className="flex space-x-2">
+      {navigation.map((item) => {
+        const Icon = item.icon
+        return (
+          <Button
+            key={item.name}
+            variant={pathname === item.href ? "default" : "ghost"}
+            asChild
+            className={`flex items-center gap-2 ${pathname === item.href ? "bg-primary text-white shadow-pink" : "hover:bg-primary/10 hover:text-primary"}`}
+          >
+            <Link href={item.href}>
+              <Icon className="h-4 w-4" />
+              {item.name}
+            </Link>
+
+        
+          </Button>
+        )
+      })}
+    </nav>
+  )
+}
+"use client"
+
+import Link from "next/link"
+import type { Socio } from "@/lib/types"
+import { calcularComision, formatearMoneda, formatearPorcentaje } from "@/lib/utils-app"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Eye, Edit, Phone, MapPin } from "lucide-react"
+
+interface SocioCardProps {
+  socio: Socio
+  onEdit?: (socio: Socio) => void
+}
+
+export function SocioCard({ socio, onEdit }: SocioCardProps) {
+  const comision = calcularComision(socio)
+
+  return (
+    <Card className="w-full shadow-pink border-pink hover:shadow-lg transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="text-lg text-primary">{socio.nombre}</CardTitle>
+            <p className="text-sm text-muted-foreground">DNI: {socio.dni}</p>
+          </div>
+          <Badge
+            className={
+              socio.estado === "activo"
+                ? "bg-primary hover:bg-primary/80 text-white"
+                : "bg-primary/70 hover:bg-primary/60 text-white"
+            }
+          >
+            {socio.estado}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="font-medium">Tipo de Préstamo</p>
+            <p className="text-muted-foreground">{socio.tipo_prestamo}</p>
+          </div>
+          <div>
+            <p className="font-medium">Monto Crédito</p>
+            <p className="text-muted-foreground">{formatearMoneda(socio.monto_credito)}</p>
+          </div>
+          <div>
+            <p className="font-medium">Comisión</p>
+            <p className="text-muted-foreground">{formatearMoneda(comision)}</p>
+          </div>
+          <div>
+            <p className="font-medium">Porcentaje</p>
+            <p className="text-muted-foreground">{formatearPorcentaje(socio.porcentaje_comision || 0)}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Phone className="h-4 w-4" />
+          <span>{socio.telefono}</span>
+        </div>
+
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <MapPin className="h-4 w-4" />
+          <span className="truncate">{socio.direccion}</span>
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="flex-1 border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
+          >
+            <Link href={`/socios/${socio.id}`}>
+              <Eye className="h-4 w-4 mr-1" />
+              Ver
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="flex-1 border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
+          >
+            <Link href={`/socios/${socio.id}/editar`}>
+              <Edit className="h-4 w-4 mr-1" />
+              Editar
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+"use client"
+
+import type { Tarea } from "@/lib/types"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Calendar, AlertCircle, CheckCircle2, Clock } from "lucide-react"
+
+interface TareaCardProps {
+  tarea: Tarea
+  onToggleComplete?: (id: string) => void
+  onEdit?: (tarea: Tarea) => void
+}
+
+export function TareaCard({ tarea, onToggleComplete, onEdit }: TareaCardProps) {
+  const fechaVencimiento = new Date(tarea.fecha_vencimiento)
+  const hoy = new Date()
+  const esVencida = fechaVencimiento < hoy && !tarea.completada
+  const esProxima = fechaVencimiento.getTime() - hoy.getTime() < 7 * 24 * 60 * 60 * 1000 && !tarea.completada
+
+  const getPrioridadColor = (prioridad: string) => {
+    switch (prioridad) {
+      case "alta":
+        return "destructive"
+      case "media":
+        return "default"
+      case "baja":
+        return "secondary"
+      default:
+        return "secondary"
+    }
+  }
+
+  const getStatusIcon = () => {
+    if (tarea.completada) return <CheckCircle2 className="h-4 w-4 text-green-600" />
+    if (esVencida) return <AlertCircle className="h-4 w-4 text-red-600" />
+    if (esProxima) return <Clock className="h-4 w-4 text-yellow-600" />
+    return <Calendar className="h-4 w-4 text-muted-foreground" />
+  }
+
+  return (
+    <Card className={`w-full shadow-pink border-pink ${tarea.completada ? "opacity-75" : ""}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-3">
+            {onToggleComplete && (
+              <Checkbox
+                checked={tarea.completada}
+                onCheckedChange={() => onToggleComplete(tarea.id)}
+                className="mt-1"
+              />
+            )}
+            <div>
+              <CardTitle className={`text-lg ${tarea.completada ? "line-through" : ""}`}>{tarea.titulo}</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">{tarea.descripcion}</p>
+            </div>
+          </div>
+          <Badge variant={getPrioridadColor(tarea.prioridad) as any}>{tarea.prioridad}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center gap-2 text-sm">
+          {getStatusIcon()}
+          <span className={esVencida ? "text-red-600 font-medium" : "text-muted-foreground"}>
+            Vence: {fechaVencimiento.toLocaleDateString("es-AR")}
+          </span>
+        </div>
+
+        {esVencida && <div className="text-sm text-red-600 font-medium">¡Tarea vencida!</div>}
+
+        {esProxima && !esVencida && <div className="text-sm text-yellow-600 font-medium">Vence pronto</div>}
+
+        {onEdit && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onEdit(tarea)}
+            className="border-primary text-primary hover:bg-primary hover:text-white"
+          >
+            Editar
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+import type { ComisionesPorTipo } from "./types"
+
+export const COMISIONES_POR_TIPO: ComisionesPorTipo = {
+  MUPER: {
+    porcentajes_posibles: [0.06, 0.07, 0.08],
+    porcentaje_por_defecto: 0.07,
+  },
+  REFI: {
+    porcentajes_posibles: [0.03],
+    porcentaje_por_defecto: 0.03,
+  },
+  Nacional: {
+    porcentajes_posibles: [0.03],
+    porcentaje_por_defecto: 0.03,
+  },
+  SiDeCreer: {
+    porcentajes_posibles: [0.05],
+    porcentaje_por_defecto: 0.05,
+  },
+  "Nuevo Socio": {
+    porcentajes_posibles: [0.02, 0.03, 0.04],
+    porcentaje_por_defecto: 0.03,
+  },
+}
+
+export const TIPOS_PRESTAMO = Object.keys(COMISIONES_POR_TIPO) as Array<keyof typeof COMISIONES_POR_TIPO>
+export interface Socio {
+  id: string
+  nombre: string
+  dni: string
+  telefono: string
+  direccion: string
+  estado: "activo" | "pasivo"
+  tipo_prestamo: "MUPER" | "REFI" | "Nacional" | "SiDeCreer" | "Nuevo Socio"
+  monto_credito: number
+  fecha_otorgamiento: string
+  porcentaje_comision?: number
+  observaciones?: string
+  fecha_creacion: string
+}
+
+export interface Tarea {
+  id: string
+  titulo: string
+  descripcion: string
+  fecha_vencimiento: string
+  completada: boolean
+  socio_id?: string
+  prioridad: "baja" | "media" | "alta"
+  fecha_creacion: string
+}
+
+export interface ComisionConfig {
+  porcentajes_posibles: number[]
+  porcentaje_por_defecto: number
+}
+
+export interface ComisionesPorTipo {
+  [key: string]: ComisionConfig
+}
+import type { Socio } from "./types"
+import { COMISIONES_POR_TIPO } from "./data"
+
+export function calcularComision(socio: Socio): number {
+  const porcentaje = socio.porcentaje_comision || COMISIONES_POR_TIPO[socio.tipo_prestamo].porcentaje_por_defecto
+  return socio.monto_credito * porcentaje
+}
+
+export function formatearMoneda(monto: number): string {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+  }).format(monto)
+}
+
+export function formatearPorcentaje(porcentaje: number): string {
+  return `${(porcentaje * 100).toFixed(1)}%`
+}
+
+export function obtenerResumenMensual(socios: Socio[]) {
+  const sociosActivos = socios.filter((s) => s.estado === "activo")
+
+  const comisionesPorTipo = sociosActivos.reduce(
+    (acc, socio) => {
+      const tipo = socio.tipo_prestamo
+      if (!acc[tipo]) {
+        acc[tipo] = { total: 0, cantidad: 0 }
+      }
+      acc[tipo].total += calcularComision(socio)
+      acc[tipo].cantidad += 1
+      return acc
+    },
+    {} as Record<string, { total: number; cantidad: number }>,
+  )
+
+  const totalGeneral = Object.values(comisionesPorTipo).reduce((sum, item) => sum + item.total, 0)
+
+  const fechaActual = new Date()
+  const inicioMes = new Date(fechaActual.getFullYear(), fechaActual.getMonth(), 1)
+  const sociosNuevos = socios.filter((s) => new Date(s.fecha_creacion) >= inicioMes).length
+
+  return {
+    comisionesPorTipo,
+    totalGeneral,
+    sociosNuevos,
+    totalSocios: socios.length,
+    sociosActivos: sociosActivos.length,
+  }
+}
+import type { Config } from "tailwindcss"
+
+const config = {
+  darkMode: ["class"],
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+    "*.{js,ts,jsx,tsx,mdx}",
+  ],
+  prefix: "",
+  theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(330 81% 60%)", // Rosa principal
+          foreground: "hsl(0 0% 98%)",
+          50: "hsl(330 100% 98%)",
+          100: "hsl(330 100% 95%)",
+          200: "hsl(330 96% 89%)",
+          300: "hsl(330 87% 81%)",
+          400: "hsl(330 81% 70%)",
+          500: "hsl(330 81% 60%)",
+          600: "hsl(330 70% 50%)",
+          700: "hsl(330 70% 42%)",
+          800: "hsl(330 70% 35%)",
+          900: "hsl(330 70% 28%)",
+        },
+        secondary: {
+          DEFAULT: "hsl(320 20% 96%)",
+          foreground: "hsl(330 70% 35%)",
+        },
+        destructive: {
+          DEFAULT: "hsl(0 84% 60%)",
+          foreground: "hsl(0 0% 98%)",
+        },
+        muted: {
+          DEFAULT: "hsl(320 20% 96%)",
+          foreground: "hsl(330 20% 45%)",
+        },
+        accent: {
+          DEFAULT: "hsl(315 40% 94%)",
+          foreground: "hsl(330 70% 35%)",
+        },
+        popover: {
+          DEFAULT: "hsl(0 0% 100%)",
+          foreground: "hsl(330 70% 15%)",
+        },
+        card: {
+          DEFAULT: "hsl(0 0% 100%)",
+          foreground: "hsl(330 70% 15%)",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate")],
+} satisfies Config
+
+export default config
